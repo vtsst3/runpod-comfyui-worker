@@ -1,16 +1,19 @@
 # 動作実績のあるコミュニティテンプレートをベースにする
 FROM runpod/worker-comfyui:5.1.0-sdxl
 
+# --- ▼▼▼【重要】キャッシュバスティングのためのARG命令▼▼▼ ---
+# ビルド時に毎回変わる値をARGとして定義する。
+# これにより、このARGに依存するRUN命令はキャッシュが使われなくなる。
+ARG CACHE_BUSTER=none
+# --- ▲▲▲ここまで▲▲▲ ---
+
 # --- ▼▼▼ カスタムノードの追加 ▼▼▼ ---
 
-# ComfyUIのカスタムノードディレクトリに移動する
 WORKDIR /app/ComfyUI/custom_nodes
 
-# 全てのインストール作業を一つのRUN命令にまとめる。
-# 'set -e' を使うことで、シェルスクリプトの途中でコマンドが失敗したら、即座にスクリプト全体がエラーで停止する。
-# これにより、Dockerビルドも確実に失敗し、問題を見逃すことがなくなる。
-# apt-getもより安定した書き方に修正。
 RUN set -e && \
+    # 上で定義したARGをENVとして設定。この行があることで、RUN命令がCACHE_BUSTERに依存するようになる。
+    echo "Cache Buster: ${CACHE_BUSTER}" && \
     apt-get -y -qq update && \
     apt-get -y -qq install git && \
     \
@@ -30,5 +33,4 @@ RUN set -e && \
 
 # --- ▲▲▲ カスタマイズはここまで ▲▲▲ ---
 
-# ベースイメージの作業ディレクトリに戻しておく
 WORKDIR /
