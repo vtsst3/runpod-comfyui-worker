@@ -1,25 +1,34 @@
 # 動作実績のあるコミュニティテンプレートをベースにする
 FROM runpod/worker-comfyui:5.1.0-sdxl
 
-# --- ▼▼▼ ここに、我々が追加したいカスタムノードだけを記述する ▼▼▼ ---
+# --- ▼▼▼ カスタムノードの追加 ▼▼▼ ---
 
 # ComfyUIのカスタムノードディレクトリに移動する
-# (このテンプレートでは /app/ComfyUI にインストールされています)
 WORKDIR /app/ComfyUI/custom_nodes
 
-# Impact Packを追加 (テンプレートに含まれていない場合)
-RUN git clone https://github.com/ltdrdata/ComfyUI-Impact-Pack.git && \
-    pip install --no-cache-dir -r ComfyUI-Impact-Pack/requirements.txt
-
-# rgthree-comfy を追加
-RUN git clone https://github.com/rgthree/rgthree-comfy.git
-
-# ... 他に追加したいノードがあれば、ここに `RUN git clone ...` を追記 ...
-# 例: RUN git clone https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git && \
-#        pip install --no-cache-dir -r ComfyUI-AnimateDiff-Evolved/requirements.txt
-
+# 全てのインストール作業を一つのRUN命令にまとめる。
+# 'set -e' を使うことで、シェルスクリプトの途中でコマンドが失敗したら、即座にスクリプト全体がエラーで停止する。
+# これにより、Dockerビルドも確実に失敗し、問題を見逃すことがなくなる。
+# apt-getもより安定した書き方に修正。
+RUN set -e && \
+    apt-get -y -qq update && \
+    apt-get -y -qq install git && \
+    \
+    echo "--- Starting custom node installation ---" && \
+    \
+    echo "Cloning Impact Pack..." && \
+    git clone https://github.com/ltdrdata/ComfyUI-Impact-Pack.git && \
+    pip install --no-cache-dir -r ComfyUI-Impact-Pack/requirements.txt && \
+    \
+    echo "Cloning rgthree-comfy..." && \
+    git clone https://github.com/rgthree/rgthree-comfy.git && \
+    \
+    echo "--- Installation finished. Verifying directory contents: ---" && \
+    ls -l && \
+    \
+    echo "--- Custom node setup complete. ---"
 
 # --- ▲▲▲ カスタマイズはここまで ▲▲▲ ---
 
-# 起動スクリプトやハンドラはベースイメージのものをそのまま使うので、
-# これ以上何も記述する必要はありません。
+# ベースイメージの作業ディレクトリに戻しておく
+WORKDIR /
