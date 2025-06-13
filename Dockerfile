@@ -34,7 +34,7 @@ RUN git clone https://github.com/rgthree/rgthree-comfy.git
 
 # STEP 6: Network VolumeをComfyUIに認識させる
 RUN rm -rf /ComfyUI/models && \
-    ln -s /runpod-volume /ComfyUI/models
+    ln -s /workspace/models /ComfyUI/models
 
 # STEP 7: 我々の起動スクリプトとハンドラを配置
 WORKDIR /
