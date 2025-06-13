@@ -1,36 +1,37 @@
-# 動作実績のあるコミュニティテンプレートをベースにする
-FROM runpod/worker-comfyui:5.1.0-sdxl
+# STEP 1: 我々がコントロールできる、クリーンな開発環境から始める
+FROM runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel-ubuntu22.04
 
-# --- ▼▼▼【重要】キャッシュバスティングのためのARG命令▼▼▼ ---
-# ビルド時に毎回変わる値をARGとして定義する。
-# これにより、このARGに依存するRUN命令はキャッシュが使われなくなる。
-ARG CACHE_BUSTER=none
-# --- ▲▲▲ここまで▲▲▲ ---
+# STEP 2: ベースイメージに含まれる不要な巨大ファイルを根こそぎ削除し、イメージを軽量化する
+RUN rm -rf /workspace/* /root/.cache/*
 
-# --- ▼▼▼ カスタムノードの追加 ▼▼▼ ---
-
-WORKDIR /app/ComfyUI/custom_nodes
-
-RUN set -e && \
-    # 上で定義したARGをENVとして設定。この行があることで、RUN命令がCACHE_BUSTERに依存するようになる。
-    echo "Cache Buster: ${CACHE_BUSTER}" && \
-    apt-get -y -qq update && \
-    apt-get -y -qq install git && \
-    \
-    echo "--- Starting custom node installation ---" && \
-    \
-    echo "Cloning Impact Pack..." && \
-    git clone https://github.com/ltdrdata/ComfyUI-Impact-Pack.git && \
-    pip install --no-cache-dir -r ComfyUI-Impact-Pack/requirements.txt && \
-    \
-    echo "Cloning rgthree-comfy..." && \
-    git clone https://github.com/rgthree/rgthree-comfy.git && \
-    \
-    echo "--- Installation finished. Verifying directory contents: ---" && \
-    ls -l && \
-    \
-    echo "--- Custom node setup complete. ---"
-
-# --- ▲▲▲ カスタマイズはここまで ▲▲▲ ---
-
+# STEP 3: 必要なツールとComfyUI本体をインストールする
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y git wget
 WORKDIR /
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git
+
+# STEP 4: ComfyUIと、我々が使うカスタムノードの全ての依存関係を、我々の手で確実にインストールする
+WORKDIR /ComfyUI
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir "numpy<2.0" opencv-python scikit-image
+
+# STEP 5: カスタムノードをインストールする
+WORKDIR /ComfyUI/custom_nodes
+RUN git clone https://github.com/ltdrdata/ComfyUI-Impact-Pack.git
+RUN git clone https://github.com/rgthree/rgthree-comfy.git
+# ... ここに、今後追加したいノードを追記していく ...
+
+# STEP 6: ComfyUIがモデルを探す場所を、Network Volumeへの入り口に差し替える
+# これにより、モデルはイメージに含まれず、起動が高速になる
+RUN rm -rf /ComfyUI/models && \
+    ln -s /runpod-volume /ComfyUI/models
+
+# STEP 7: 我々が作った、確実に動作する起動スクリプトとハンドラを配置する
+WORKDIR /
+COPY simple_handler.py .
+COPY start.sh . 
+RUN pip install --no-cache-dir aiohttp runpod requests websocket-client
+
+# STEP 8: 起動コマンドを設定する
+RUN chmod +x /start.sh
+CMD ["/start.sh"]
