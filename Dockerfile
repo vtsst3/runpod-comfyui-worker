@@ -13,7 +13,8 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git
 # STEP 4: ComfyUIと、我々が使うカスタムノードの全ての依存関係を、我々の手で確実にインストールする
 WORKDIR /ComfyUI
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir "numpy<2.0" opencv-python scikit-image
+# ▼▼▼ piexif をここに追加！▼▼▼
+RUN pip install --no-cache-dir "numpy<2.0" opencv-python scikit-image piexif
 
 # STEP 5: カスタムノードをインストールする
 WORKDIR /ComfyUI/custom_nodes
@@ -22,7 +23,6 @@ RUN git clone https://github.com/rgthree/rgthree-comfy.git
 # ... ここに、今後追加したいノードを追記していく ...
 
 # STEP 6: ComfyUIがモデルを探す場所を、Network Volumeへの入り口に差し替える
-# これにより、モデルはイメージに含まれず、起動が高速になる
 RUN rm -rf /ComfyUI/models && \
     ln -s /runpod-volume /ComfyUI/models
 
